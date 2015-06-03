@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:batch="http://www.springframework.org/schema/batch"
+	xmlns:task="http://www.springframework.org/schema/task"
+	xsi:schemaLocation="http://www.springframework.org/schema/task http://www.springframework.org/schema/task/spring-task-4.0.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/batch http://www.springframework.org/schema/batch/spring-batch.xsd">
+
+	<import resource="classpath:/spring/batch/batch.xml" />
+
+	<batch:job id="simplejob">
+		<batch:description>our first demo job</batch:description>
+		<batch:step id="step1" next="split">
+			<batch:description>our first step</batch:description>
+			<batch:tasklet task-executor="taskExecutor">
+				<batch:chunk reader="itemReader" writer="itemWriter"
+					commit-interval="2" processor="itemProcessor" />
+			</batch:tasklet>
+		</batch:step>
+		<batch:split id="split" task-executor="taskExecutor">
+			<batch:flow>
+				<batch:step id="step2a">
+					<batch:description>our first step</batch:description>
+					<batch:tasklet>
+						<batch:chunk reader="itemReader" writer="itemWriter"
+							commit-interval="10" processor="itemProcessor" />
+					</batch:tasklet>
+				</batch:step>
+			</batch:flow>
+			<batch:flow>
+				<batch:step id="step2b">
+					<batch:description>our first step</batch:description>
+					<batch:tasklet>
+						<batch:chunk reader="itemReader" writer="itemWriter"
+							commit-interval="1" processor="itemProcessor" />
+					</batch:tasklet>
+				</batch:step>
+			</batch:flow>
+		</batch:split>
+
+		<batch:validator>
+			<bean
+				class="org.springframework.batch.core.job.DefaultJobParametersValidator">
+				<property name="requiredKeys">
+					<list>
+						<value>fail</value>
+					</list>
+				</property>
+			</bean>
+		</batch:validator>
+	</batch:job>
+	<bean id="itemReader"
+		class="org.springframework.batch.admin.sample.ExampleItemReader" scope="step">
+	</bean>
+	<bean id="itemProcessor"
+		class="org.springframework.batch.admin.sample.ExampleItemProcessor" />
+
+	<bean id="itemWriter"
+		class="org.springframework.batch.admin.sample.ExampleItemWriter"
+		scope="step">
+		<property name="fail" value="#{jobParameters['fail']}" />
+	</bean>
+	<task:executor id="taskExecutor" pool-size="1" />
+</beans>

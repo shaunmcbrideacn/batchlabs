@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:batch="http://www.springframework.org/schema/batch"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/batch http://www.springframework.org/schema/batch/spring-batch.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx.xsd">
+
+	<import resource="classpath:/spring/batch/batch.xml" />
+
+	<batch:job id="new-customers">
+		<batch:step id="stageCustomers">
+			<batch:description>Reads customer records from flat files and inserts into staging table.</batch:description>
+			<batch:tasklet>
+				<batch:chunk reader="multiResourceItemReader"
+					processor="validationProcessor" writer="jdbcBatchItemWriter"
+					commit-interval="5" />
+				
+			</batch:tasklet>
+		</batch:step>
+	</batch:job>
+
+	<bean id="multiResourceItemReader"
+		class="org.springframework.batch.item.file.MultiResourceItemReader">
+		<property name="resources" value="classpath:/customer-mailing/*.csv" />
+		<property name="delegate" ref="flatFileItemReader" />
+	</bean>
+
+	<bean id="flatFileItemReader" class="org.springframework.batch.item.file.FlatFileItemReader"
+		scope="step">
+		<property name="lineMapper">
+			<bean class="org.springframework.batch.item.file.mapping.DefaultLineMapper">
+				<property name="fieldSetMapper">
+					<bean
+						class="org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper">
+						<property name="targetType"
+							value="com.batchdemo.data.MailingListStageDto" />
+					</bean>
+				</property>
+				<property name="lineTokenizer">
+					<bean
+						class="org.springframework.batch.item.file.transform.DelimitedLineTokenizer">
+						<property name="names" value="firstName,lastName,email" />
+					</bean>
+				</property>
+			</bean>
+
+		</property>
+	</bean>
+
+	<bean id="validationProcessor"
+		class="org.springframework.batch.item.validator.ValidatingItemProcessor">
+		<property name="filter" value="true" />
+		<property name="validator">
+			<bean
+				class="org.springframework.batch.item.validator.SpringValidator">
+				<property name="validator">
+					<bean id="validator"
+						class="org.springframework.validation.beanvalidation.LocalValidatorFactoryBean" />
+				</property>
+			</bean>
+		</property>
+	</bean>
+
+	<bean id="jdbcBatchItemWriter"
+		class="org.springframework.batch.item.database.JdbcBatchItemWriter">
+		<property name="dataSource" ref="dataSource" />
+		<property name="itemSqlParameterSourceProvider">
+			<bean
+				class="org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourceProvider" />
+		</property>
+		<property name="sql"
+			value="insert into mailing_list_stg (id,first_name,last_name,email) values (NEXT VALUE FOR mailing_list_stg_seq, :firstName, :lastName, :email)" />
+	</bean>
+</beans>

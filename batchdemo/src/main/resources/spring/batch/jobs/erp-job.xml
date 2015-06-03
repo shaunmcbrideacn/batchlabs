@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:batch="http://www.springframework.org/schema/batch"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/batch http://www.springframework.org/schema/batch/spring-batch.xsd">
+
+	<import resource="classpath:/spring/batch/batch.xml" />
+
+	<batch:job id="erp-job">
+		<batch:step id="step1">
+			<batch:tasklet>
+				<batch:chunk reader="reader" processor="processor"
+					writer="writer" commit-interval="2"/>
+			</batch:tasklet>
+		</batch:step>
+	</batch:job>
+
+	<bean id="reader"
+		class="org.springframework.batch.item.database.JdbcCursorItemReader">
+		<property name="dataSource" ref="dataSource" />
+		<property name="rowMapper">
+			<bean class="org.springframework.jdbc.core.BeanPropertyRowMapper">
+				<property name="mappedClass" value="com.batchdemo.data.Order" />
+
+			</bean>
+		</property>
+		<property name="sql"
+			value="select id,sku,customer_id,quantity from orders where processed = 'N'" />
+	</bean>
+
+	<bean id="processor" class="com.batchdemo.service.ErpProcessor" >
+	<property name="erpService" ref="erpService"/>
+	</bean>
+
+	<bean id="writer"
+		class="org.springframework.batch.item.database.JdbcBatchItemWriter">
+		<property name="dataSource" ref="dataSource" />
+		<property name="sql" value="update orders set processed = 'Y' where id = :id" />
+		<property name="itemSqlParameterSourceProvider">
+			<bean class="org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourceProvider" />
+		</property>
+
+	</bean>
+
+	<bean id="erpService" class="com.batchdemo.service.PeopleSoftServiceImpl" />
+</beans>
